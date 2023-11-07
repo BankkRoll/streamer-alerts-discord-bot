@@ -4,7 +4,7 @@
 
 **StreamerBot** is a specialized Discord bot designed to track and notify users of live streams from their favorite content creators. Utilizing the Sapphire Framework, it provides an efficient and user-friendly experience.
 
-- **Live Stream Tracking**: Monitors platforms like Twitch, YouTube, Rumble, and more.
+- **Live Stream Tracking**: Monitors platforms like Kick.com, Twitch.com, YouTube.com, Rumble.com, TikTok.com ect..
 - **Notification System**: Sends alerts when a tracked streamer goes live.
 - **Streamer Management**: Add or remove streamers from the tracking list.
 
