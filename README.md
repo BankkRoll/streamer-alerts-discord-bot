@@ -10,13 +10,13 @@
 
 ## Checklist
 
-[ ] Kick working
-[ ] TikTok working
-[x] Youtube working
-[x] Twitch working
-[X] Rumble working
-[ ] Restyle/Clean up embeds
-[ ] Clean tracking to be consistent for each platform
+- [ ] Kick working
+- [ ] TikTok working
+- [x] YouTube working
+- [x] Twitch working
+- [x] Rumble working
+- [ ] Restyle/Clean up embeds
+- [ ] Clean tracking to be consistent for each platform
 
 ## Installation Instructions
 
