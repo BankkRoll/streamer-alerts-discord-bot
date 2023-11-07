@@ -28,7 +28,7 @@ const Enmap = require("enmap");
 const guildSettings = new Enmap({
   name: "guildSettings",
   autoEnsure: {
-    streamers: [],
+    streamers: [], // This will now contain objects of streamer data
   },
   ensureProps: true,
 });

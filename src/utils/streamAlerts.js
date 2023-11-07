@@ -1,10 +1,9 @@
+// src/utils/streamAlerts.js
 const { guildSettings } = require("../../db");
 const { createEmbed } = require("./embed");
 const { checkTwitchLive } = require("./twitch");
 const { checkYouTubeLive } = require("./youtube");
 const { checkRumbleLive } = require("./rumble");
-// const { checkKickLive } = require("./kick");
-// const { checkTikTokLive } = require("./tiktok");
 const config = require("../../config.json");
 
 const liveStreamers = new Set();
@@ -19,30 +18,46 @@ async function checkStreamers(client) {
   if (client.guilds.cache.size === 0) return;
 
   for (const [guildId, guild] of client.guilds.cache) {
-    let streamers = guildSettings.get(guildId, "streamers");
-    if (!streamers) {
-      streamers = [];
-    }
+    let streamers = guildSettings.get(guildId, "streamers") || [];
+    console.log(`Guild ID: ${guildId}, Streamers:`, streamers);
 
-    for (const streamer of streamers) {
-      const liveInfo = await checkIfLive(streamer);
-      const liveStreamKey = `${guildId}-${streamer.id}`;
+    for (let i = 0; i < streamers.length; i++) {
+      try {
+        const liveInfo = await checkIfLive(streamers[i]);
+        console.log(liveInfo);
 
-      if (liveInfo.isLive && !liveStreamers.has(liveStreamKey)) {
-        liveStreamers.add(liveStreamKey);
-        const channel = client.channels.cache.get(streamer.channelID);
-        if (!channel) continue;
+        const liveStreamKey = `${guildId}-${streamers[i].id}`;
 
-        const embed = createEmbed({
-          title: liveInfo.title,
-          description: `${liveInfo.description}\nCheck out the live stream on [${streamer.platform}](${liveInfo.url}).`,
-          color: config.color,
-          image: liveInfo.imageUrl,
-        });
+        if (liveInfo.isLive && !liveStreamers.has(liveStreamKey)) {
+          liveStreamers.add(liveStreamKey);
+          streamers[i] = { ...streamers[i], ...liveInfo.streamer };
+          await guildSettings.set(guildId, "streamers", streamers);
 
-        await channel.send({ embeds: [embed] });
-      } else if (!liveInfo.isLive) {
-        liveStreamers.delete(liveStreamKey);
+          streamers[i].title = liveInfo.streamer.title;
+          streamers[i].description = liveInfo.streamer.description;
+          streamers[i].imageUrl = liveInfo.streamer.imageUrl;
+          streamers[i].url = liveInfo.streamer.url;
+
+          await guildSettings.set(guildId, "streamers", streamers);
+
+          const channel = client.channels.cache.get(streamers[i].channelID);
+          if (!channel) continue;
+
+          const embed = createEmbed({
+            title: streamers[i].title || 'Live Stream',
+            description: `Check out the live stream on [${streamers[i].platform}](${streamers[i].url || ' '}).`,
+            color: config.color,
+            image: streamers[i].imageUrl || ' ',
+          });
+
+          await channel.send({ embeds: [embed] });
+        } else if (!liveInfo.isLive && liveStreamers.has(liveStreamKey)) {
+          liveStreamers.delete(liveStreamKey);
+          streamers[i].isLive = false;
+          await guildSettings.set(guildId, "streamers", streamers);
+        }
+      } catch (error) {
+        console.error('Error during live check:', error);
       }
     }
   }
