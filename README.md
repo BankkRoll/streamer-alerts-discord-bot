@@ -13,8 +13,8 @@
 1. **Clone the Repository**:
 
    ```sh
-   git clone [Your Repository URL]
-   cd [Your Repository Directory]
+   git clone https://github.com/BankkRoll/streamer-alerts-discord-bot
+   cd streamer-alerts-discord-bot
    ```
 
 2. **Install Dependencies**:
