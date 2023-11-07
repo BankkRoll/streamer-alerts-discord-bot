@@ -44,10 +44,12 @@ async function checkStreamers(client) {
           if (!channel) continue;
 
           const embed = createEmbed({
-            title: streamers[i].title || 'Live Stream',
-            description: `Check out the live stream on [${streamers[i].platform}](${streamers[i].url || ' '}).`,
+            title: streamers[i].title || "Live Stream",
+            description: `Check out the live stream on [${
+              streamers[i].platform
+            }](${streamers[i].url || " "}).`,
             color: config.color,
-            image: streamers[i].imageUrl || ' ',
+            image: streamers[i].imageUrl || " ",
           });
 
           await channel.send({ embeds: [embed] });
@@ -57,7 +59,7 @@ async function checkStreamers(client) {
           await guildSettings.set(guildId, "streamers", streamers);
         }
       } catch (error) {
-        console.error('Error during live check:', error);
+        console.error("Error during live check:", error);
       }
     }
   }

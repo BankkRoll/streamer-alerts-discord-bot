@@ -58,13 +58,18 @@ module.exports = class AddStreamerCommand extends Command {
     const guildId = interaction.guildId;
     const platform = interaction.options.getString("platform");
     const name = interaction.options.getString("name");
-    const channel = interaction.options.getString("channel").replace(/[<#>]/g, "");
+    const channel = interaction.options
+      .getString("channel")
+      .replace(/[<#>]/g, "");
 
     const defaultStreamerData = {
-      streamers: []
+      streamers: [],
     };
 
-    const streamers = guildSettings.ensure(guildId, defaultStreamerData).streamers;
+    const streamers = guildSettings.ensure(
+      guildId,
+      defaultStreamerData
+    ).streamers;
 
     const newStreamer = {
       id: `${platform}:${name}`,
@@ -72,10 +77,10 @@ module.exports = class AddStreamerCommand extends Command {
       platform,
       channelID: channel,
       isLive: false,
-      lastLiveAt: null
+      lastLiveAt: null,
     };
 
-    if (streamers.some(s => s.id === newStreamer.id)) {
+    if (streamers.some((s) => s.id === newStreamer.id)) {
       const embed = createEmbed({
         description: "❌ This streamer is already being tracked.",
       });

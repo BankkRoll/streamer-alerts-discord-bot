@@ -33,8 +33,12 @@ module.exports = class ListStreamersCommand extends Command {
 
     const streamersListString = streamers
       .map((streamer, index) => {
-        return `${index + 1}. **${streamer.name}** on **${streamer.platform}**` +
-          ` (Notifications in <#${streamer.channelID}>). Last live: ${streamer.lastLiveAt ? streamer.lastLiveAt.toLocaleString() : "Never"}`;
+        return (
+          `${index + 1}. **${streamer.name}** on **${streamer.platform}**` +
+          ` (Notifications in <#${streamer.channelID}>). Last live: ${
+            streamer.lastLiveAt ? streamer.lastLiveAt.toLocaleString() : "Never"
+          }`
+        );
       })
       .join("\n");
 

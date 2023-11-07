@@ -6,9 +6,18 @@ const config = require("../config.json");
 const streamAlerts = require("./utils/streamAlerts");
 
 const activities = [
-  { text: "on {streamerCount} streams | {serverCount} servers", type: "PLAYING" },
-  { text: "over {streamerCount} live streams | {serverCount} servers", type: "WATCHING" },
-  { text: "to {streamerCount} streamers | {serverCount} servers", type: "LISTENING" }
+  {
+    text: "on {streamerCount} streams | {serverCount} servers",
+    type: "PLAYING",
+  },
+  {
+    text: "over {streamerCount} live streams | {serverCount} servers",
+    type: "WATCHING",
+  },
+  {
+    text: "to {streamerCount} streamers | {serverCount} servers",
+    type: "LISTENING",
+  },
 ];
 
 const client = new SapphireClient({
