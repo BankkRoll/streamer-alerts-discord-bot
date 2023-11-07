@@ -1,0 +1,31 @@
+{
+  "name": "streamer-alerts-bot",
+  "version": "1.0.0",
+  "description": "Streamer Alerts Discord Bot",
+  "main": "./src/index.js",
+  "scripts": {
+    "start": "node .",
+    "dev": "nodemon .",
+    "format": "prettier --write .",
+    "lint": "eslint . --fix",
+    "test": "jest"
+  },
+  "author": "bankkroll",
+  "license": "MIT",
+  "dependencies": {
+    "@sapphire/discord.js-utilities": "^5.0.0",
+    "@sapphire/framework": "^3.1.0",
+    "@sapphire/ratelimits": "^2.4.4",
+    "@sapphire/time-utilities": "^1.7.6",
+    "discord.js": "^13.16.0",
+    "enmap": "^5.9.1",
+    "moment": "^2.29.4",
+    "sapphire-plugin-modal-commands": "^1.0.9"
+  },
+  "devDependencies": {
+    "eslint": "^8.0.0",
+    "jest": "^28.0.0",
+    "nodemon": "^2.0.19",
+    "prettier": "^2.5.1"
+  }
+}
