@@ -8,7 +8,6 @@ const { checkKickLive } = require("./kick");
 // const { checkTikTokLive } = require("./tiktok");
 const config = require("../../config.json");
 
-const liveStreamers = new Set();
 const lastLiveData = new Map();
 
 module.exports = {
@@ -27,9 +26,11 @@ async function checkStreamers(client) {
       try {
         const liveInfo = await checkIfLive(streamers[i]);
         const liveStreamKey = `${guildId}-${streamers[i].id}`;
+        const lastLive = lastLiveData.get(liveStreamKey);
 
         const shouldSendEmbed =
-          liveInfo.isLive && !lastLiveData.has(liveStreamKey);
+          liveInfo.isLive &&
+          (!lastLive || lastLive.title !== liveInfo.streamer.title);
 
         if (shouldSendEmbed) {
           const channel = client.channels.cache.get(streamers[i].channelID);
@@ -42,7 +43,6 @@ async function checkStreamers(client) {
             title: liveInfo.streamer.title,
             imageUrl: liveInfo.streamer.imageUrl,
             isLive: liveInfo.isLive,
-            embedSent: true,
           });
         }
 
@@ -57,10 +57,7 @@ async function checkStreamers(client) {
         };
         await guildSettings.set(guildId, "streamers", streamers);
       } catch (error) {
-        console.error(
-          `Error during live check for ${streamers[i].name}:`,
-          error
-        );
+        console.error(`Error during live check for ${streamers[i].name}:`, error);
       }
     }
   }
