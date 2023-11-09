@@ -4,6 +4,8 @@
 
 ## Overview
 
+![Screenshot 2023-11-08 193646](https://github.com/BankkRoll/streamer-alerts-discord-bot/assets/106103625/c84acc03-0a29-4862-ae6d-cf6f19f8347d)
+
 **StreamerBot** is a specialized Discord bot designed to track and notify users of live streams from their favorite content creators. Utilizing the Sapphire Framework, it provides an efficient and user-friendly experience.
 
 - **Live Stream Tracking**: Monitors platforms like Kick.com, Twitch.com, YouTube.com, Rumble.com, TikTok.com ect..
