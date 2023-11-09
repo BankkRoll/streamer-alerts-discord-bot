@@ -19,23 +19,24 @@
 - [x] Twitch working
 - [x] Rumble working
 - [ ] TikTok working
+- [ ] Fix timestamps
 - [ ] Restyle/Clean up embeds
 - [ ] Clean tracking to be consistent for each platform ( ADD MORE PULLED DETAILS FOR EACH)
   - should follow this format
 
 ```plaintext
-          platform: "",
-          username: "",
-          bio: "",
-          followersCount: "",
-          profileImageUrl: "",
-          verified: "",
-          name: "",
-          title: "",
-          viewers: "",
-          imageUrl: "",
-          startedAt: "",
-          url: "",
+          platform: "",         // platform name
+          username: "",         // username 
+          bio: "",              // bio
+          followersCount: "",   // number of followers
+          profileImageUrl: "",  // profile image url
+          verified: "",         // (or subscribed)
+          name: "",             // username
+          title: "",            // stream title
+          viewers: "",          // live viewers
+          imageUrl: "",         // live img preview url
+          startedAt: "",        // stream start time
+          url: "",              // stream url
 ```
 
 ## Installation Instructions

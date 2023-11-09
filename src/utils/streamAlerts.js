@@ -12,7 +12,7 @@ const lastLiveData = new Map();
 
 module.exports = {
   init: (client) => {
-    setInterval(() => checkStreamers(client), 60 * 1000);
+    setInterval(() => checkStreamers(client), 60 * 1000000);
   },
 };
 

@@ -31,19 +31,16 @@ module.exports = class ListStreamersCommand extends Command {
       return interaction.followUp({ embeds: [embed] });
     }
 
+    // Only include "Last live" information if the streamer is currently live
     const streamersListString = streamers
       .map((streamer, index) => {
-        // Use startedAt property to maintain consistency with streamAlerts.js
-        const lastLiveTimestamp = streamer.startedAt
-          ? Math.floor(new Date(streamer.startedAt).getTime() / 1000)
-          : null;
-        // Create a Discord timestamp string
-        const lastLiveDiscordTimestamp = lastLiveTimestamp
-          ? `<t:${lastLiveTimestamp}:R>`
-          : "Never";
+        const statusInfo = streamer.isLive
+          ? `Last live: <t:${Math.floor(new Date(streamer.startedAt).getTime() / 1000)}:R>`
+          : "";
+
         return (
           `${index + 1}. **${streamer.name}** on **${streamer.platform}**` +
-          ` (Notifications in <#${streamer.channelID}>). Last live: ${lastLiveDiscordTimestamp}`
+          ` (Notifications in <#${streamer.channelID}>)${statusInfo}`
         );
       })
       .join("\n");
@@ -52,6 +49,7 @@ module.exports = class ListStreamersCommand extends Command {
       title: "Tracked Streamers",
       description: streamersListString,
     });
+
     await interaction.followUp({ embeds: [embed] });
   }
 };
