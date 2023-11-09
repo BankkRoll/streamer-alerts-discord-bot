@@ -1,25 +1,11 @@
 // src/utils/kick.js
-const puppeteer = require("puppeteer");
+const { KickApiWrapper } = require("kick.com-api");
 
 async function checkKickLive(streamer) {
-  let browser;
+  const kickApi = new KickApiWrapper();
+
   try {
-    browser = await puppeteer.launch({
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    });
-    const page = await browser.newPage();
-
-    await page.setUserAgent(
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
-    );
-
-    await page.goto(`https://kick.com/api/v2/channels/${streamer.name}`, {
-      waitUntil: "networkidle0",
-    });
-
-    const data = await page.evaluate(() =>
-      JSON.parse(document.body.textContent)
-    );
+    const data = await kickApi.fetchChannelData(streamer.name);
 
     if (data && data.livestream && data.livestream.is_live) {
       const cleanedBio = data.user.bio.replace(/\[7TV:[^\]]+\]/g, "").trim();
@@ -52,10 +38,6 @@ async function checkKickLive(streamer) {
       error
     );
     return { isLive: false, error: error.message };
-  } finally {
-    if (browser) {
-      await browser.close();
-    }
   }
 }
 

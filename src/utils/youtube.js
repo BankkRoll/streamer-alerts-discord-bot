@@ -5,6 +5,7 @@ let fetch;
   fetch = (await import("node-fetch")).default;
 })();
 
+// TODO: Fix all fields to return info need bio, subscribersCount and start time not fully working
 async function checkYouTubeLive(streamer) {
   try {
     const response = await fetch(`https://www.youtube.com/@${streamer.name}`);
@@ -13,20 +14,44 @@ async function checkYouTubeLive(streamer) {
     const isLive = sourceCode.includes('"text":"LIVE"');
     if (isLive) {
       const titleMatch = sourceCode.match(/"label":"([^"]+) by/);
-      streamer.title = titleMatch ? titleMatch[1] : "Live Stream";
-
       const imageUrlRegex =
         /"url":"(https:\/\/i\.ytimg\.com\/[^"]+)",(?:[^}]*"width":336)/;
       const imageUrlMatch = sourceCode.match(imageUrlRegex);
-      streamer.imageUrl = imageUrlMatch ? imageUrlMatch[1] : null;
-
-      streamer.url = `https://www.youtube.com/@${streamer.name}`;
       const viewCountMatch = sourceCode.match(
-        /"viewCountText":\{"runs":\[\{"text":"(\d+)"\},\{"text":" watching"\}\]\}/
+        /"viewCountText":\{"runs":\[\{"text":"([\d,]+)"\},\{"text":" watching"\}\]\}/
       );
-      streamer.viewers = viewCountMatch ? parseInt(viewCountMatch[1]) : null;
+      const descriptionMatch = sourceCode.match(
+        /"descriptionSnippet":\s*\{"runs":\s*\[\{"text":"([^"]+)"\}\]\}/
+      );
+      const subscribersMatch = sourceCode.match(
+        /"subscriberCountText":\s*\{"simpleText":"([\d\.KM]+) subscribers"\}/
+      );
 
-      return { isLive: true, streamer };
+      const result = {
+        isLive: true,
+        streamer: {
+          platform: "youtube",
+          username: streamer.name,
+          bio: descriptionMatch
+            ? descriptionMatch[1].replace(/\\n/g, "\n")
+            : null,
+          followersCount: subscribersMatch
+            ? parseSubscribersCount(subscribersMatch[1])
+            : null,
+          profileImageUrl: null,
+          verified: null,
+          name: streamer.name,
+          title: titleMatch ? titleMatch[1] : "Live Stream",
+          viewers: viewCountMatch
+            ? parseInt(viewCountMatch[1].replace(/,/g, ""))
+            : null,
+          imageUrl: imageUrlMatch ? imageUrlMatch[1] : null,
+          startedAt: null,
+          url: `https://www.youtube.com/@${streamer.name}`,
+        },
+      };
+
+      return result;
     }
 
     return { isLive: false };
@@ -42,3 +67,12 @@ async function checkYouTubeLive(streamer) {
 module.exports = {
   checkYouTubeLive,
 };
+
+function parseSubscribersCount(subscriberText) {
+  const multiplier = subscriberText.endsWith("K")
+    ? 1000
+    : subscriberText.endsWith("M")
+    ? 1000000
+    : 1;
+  return parseInt(subscriberText.replace(/[KM]/, "")) * multiplier;
+}
