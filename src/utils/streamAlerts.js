@@ -26,33 +26,27 @@ async function checkStreamers(client) {
       try {
         const liveInfo = await checkIfLive(streamers[i]);
         const liveStreamKey = `${guildId}-${streamers[i].id}`;
-        const lastLive = lastLiveData.get(liveStreamKey);
+        const lastLive = await guildSettings.get(liveStreamKey, "lastLiveData");
 
-        const shouldSendEmbed =
-          liveInfo.isLive &&
-          (!lastLive || lastLive.title !== liveInfo.streamer.title);
+        const shouldSendEmbed = liveInfo.isLive && (
+          !lastLive ||
+          lastLive.title !== liveInfo.streamer.title
+        );
 
         if (shouldSendEmbed) {
-          const channel = client.channels.cache.get(streamers[i].channelID);
-          if (channel) {
-            const embed = createStreamerEmbed(liveInfo.streamer);
-            await channel.send({ embeds: [embed] });
-          }
-
-          lastLiveData.set(liveStreamKey, {
+          await guildSettings.set(liveStreamKey, "lastLiveData", {
             title: liveInfo.streamer.title,
             imageUrl: liveInfo.streamer.imageUrl,
-            isLive: liveInfo.isLive,
+            isLive: liveInfo.isLive
           });
-        }
-
-        if (!liveInfo.isLive && lastLiveData.has(liveStreamKey)) {
-          lastLiveData.delete(liveStreamKey);
+        } else if (!liveInfo.isLive && lastLive) {
+          await guildSettings.delete(liveStreamKey, "lastLiveData");
         }
 
         streamers[i] = {
           ...streamers[i],
           ...liveInfo.streamer,
+          isLive: liveInfo.isLive,
           lastLiveAt: liveInfo.isLive ? new Date() : streamers[i].lastLiveAt,
         };
         await guildSettings.set(guildId, "streamers", streamers);
@@ -62,6 +56,7 @@ async function checkStreamers(client) {
     }
   }
 }
+
 
 async function checkIfLive(streamer) {
   const platformCheckers = {
