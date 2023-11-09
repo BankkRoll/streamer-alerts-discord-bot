@@ -70,7 +70,8 @@ Contributions to the StreamerBot project are welcome! Please submit pull request
 
 ## License
 
-> [!IMPORTANT] > **Disclaimer:**
+> [!IMPORTANT] 
+> **Disclaimer:**
 > Please note that the APIs used in this bot are not owned or maintained by us. The usage of these APIs is at your own risk, and we make no guarantees regarding the availability, accuracy, or functionality of these services. If you are the endpoint owner and would like to remove them please open a issue and ill handle it accordingly.
 
 This project is licensed under the MIT License. For more details, see the [LICENSE](./LICENSE) file in the repository.
