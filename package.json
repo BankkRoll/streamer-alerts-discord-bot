@@ -20,6 +20,7 @@
     "discord.js": "^13.16.0",
     "enmap": "^5.9.1",
     "moment": "^2.29.4",
+    "puppeteer": "^21.5.0",
     "sapphire-plugin-modal-commands": "^1.0.9",
     "tiktok-live-connector": "^1.0.5"
   },

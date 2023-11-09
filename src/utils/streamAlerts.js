@@ -4,9 +4,12 @@ const { createEmbed } = require("./embed");
 const { checkTwitchLive } = require("./twitch");
 const { checkYouTubeLive } = require("./youtube");
 const { checkRumbleLive } = require("./rumble");
+const { checkKickLive } = require("./kick");
+// const { checkTikTokLive } = require("./tiktok");
 const config = require("../../config.json");
 
 const liveStreamers = new Set();
+const lastLiveData = new Map();
 
 module.exports = {
   init: (client) => {
@@ -19,47 +22,45 @@ async function checkStreamers(client) {
 
   for (const [guildId, guild] of client.guilds.cache) {
     let streamers = guildSettings.get(guildId, "streamers") || [];
-    console.log(`Guild ID: ${guildId}, Streamers:`, streamers);
 
     for (let i = 0; i < streamers.length; i++) {
       try {
         const liveInfo = await checkIfLive(streamers[i]);
-        console.log(liveInfo);
-
         const liveStreamKey = `${guildId}-${streamers[i].id}`;
 
-        if (liveInfo.isLive && !liveStreamers.has(liveStreamKey)) {
-          liveStreamers.add(liveStreamKey);
-          streamers[i] = { ...streamers[i], ...liveInfo.streamer };
-          await guildSettings.set(guildId, "streamers", streamers);
+        const shouldSendEmbed =
+          liveInfo.isLive && !lastLiveData.has(liveStreamKey);
 
-          streamers[i].title = liveInfo.streamer.title;
-          streamers[i].description = liveInfo.streamer.description;
-          streamers[i].imageUrl = liveInfo.streamer.imageUrl;
-          streamers[i].url = liveInfo.streamer.url;
-
-          await guildSettings.set(guildId, "streamers", streamers);
-
+        if (shouldSendEmbed) {
           const channel = client.channels.cache.get(streamers[i].channelID);
-          if (!channel) continue;
+          if (channel) {
+            const embed = createStreamerEmbed(liveInfo.streamer);
+            await channel.send({ embeds: [embed] });
+          }
 
-          const embed = createEmbed({
-            title: streamers[i].title || "Live Stream",
-            description: `Check out the live stream on [${
-              streamers[i].platform
-            }](${streamers[i].url || " "}).`,
-            color: config.color,
-            image: streamers[i].imageUrl || " ",
+          lastLiveData.set(liveStreamKey, {
+            title: liveInfo.streamer.title,
+            imageUrl: liveInfo.streamer.imageUrl,
+            isLive: liveInfo.isLive,
+            embedSent: true,
           });
-
-          await channel.send({ embeds: [embed] });
-        } else if (!liveInfo.isLive && liveStreamers.has(liveStreamKey)) {
-          liveStreamers.delete(liveStreamKey);
-          streamers[i].isLive = false;
-          await guildSettings.set(guildId, "streamers", streamers);
         }
+
+        if (!liveInfo.isLive && lastLiveData.has(liveStreamKey)) {
+          lastLiveData.delete(liveStreamKey);
+        }
+
+        streamers[i] = {
+          ...streamers[i],
+          ...liveInfo.streamer,
+          lastLiveAt: liveInfo.isLive ? new Date() : streamers[i].lastLiveAt,
+        };
+        await guildSettings.set(guildId, "streamers", streamers);
       } catch (error) {
-        console.error("Error during live check:", error);
+        console.error(
+          `Error during live check for ${streamers[i].name}:`,
+          error
+        );
       }
     }
   }
@@ -70,7 +71,7 @@ async function checkIfLive(streamer) {
     twitch: checkTwitchLive,
     youtube: checkYouTubeLive,
     rumble: checkRumbleLive,
-    // kick: checkKickLive,
+    kick: checkKickLive,
     // tiktok: checkTikTokLive,
   };
 
@@ -79,4 +80,49 @@ async function checkIfLive(streamer) {
     return checker(streamer);
   }
   return { isLive: false, streamer };
+}
+
+function createStreamerEmbed(streamer) {
+  let description = `Check out the live stream on [${streamer.platform}](${streamer.url}).`;
+  if (streamer.bio) {
+    description += "\n\n" + streamer.bio;
+  }
+
+  const fields = [];
+  if (streamer.viewerCount || streamer.viewers) {
+    fields.push({
+      name: "👀 Viewers",
+      value: streamer.viewerCount?.toString() || streamer.viewers.toString(),
+      inline: true,
+    });
+  }
+  if (streamer.startedAt) {
+    const discordTimestamp = Math.floor(
+      new Date(streamer.startedAt).getTime() / 1000
+    );
+    fields.push({
+      name: "⏰ Started At",
+      value: `<t:${discordTimestamp}:R>`,
+      inline: true,
+    });
+  }
+  if (streamer.followersCount) {
+    fields.push({
+      name: "👥 Followers",
+      value: streamer.followersCount.toString(),
+      inline: true,
+    });
+  }
+  if (streamer.verified === true) {
+    fields.push({ name: "✅ Verified", value: "Yes", inline: true });
+  }
+
+  return createEmbed({
+    title: `${streamer.title || "Live Stream"}`,
+    url: streamer.url,
+    description: description,
+    color: config.color,
+    image: streamer.imageUrl || undefined,
+    fields: fields,
+  });
 }

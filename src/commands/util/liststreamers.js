@@ -33,11 +33,17 @@ module.exports = class ListStreamersCommand extends Command {
 
     const streamersListString = streamers
       .map((streamer, index) => {
+        // Use startedAt property to maintain consistency with streamAlerts.js
+        const lastLiveTimestamp = streamer.startedAt
+          ? Math.floor(new Date(streamer.startedAt).getTime() / 1000)
+          : null;
+        // Create a Discord timestamp string
+        const lastLiveDiscordTimestamp = lastLiveTimestamp
+          ? `<t:${lastLiveTimestamp}:R>`
+          : "Never";
         return (
           `${index + 1}. **${streamer.name}** on **${streamer.platform}**` +
-          ` (Notifications in <#${streamer.channelID}>). Last live: ${
-            streamer.lastLiveAt ? streamer.lastLiveAt.toLocaleString() : "Never"
-          }`
+          ` (Notifications in <#${streamer.channelID}>). Last live: ${lastLiveDiscordTimestamp}`
         );
       })
       .join("\n");

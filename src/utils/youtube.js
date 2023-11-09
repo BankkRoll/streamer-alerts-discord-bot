@@ -21,6 +21,10 @@ async function checkYouTubeLive(streamer) {
       streamer.imageUrl = imageUrlMatch ? imageUrlMatch[1] : null;
 
       streamer.url = `https://www.youtube.com/@${streamer.name}`;
+      const viewCountMatch = sourceCode.match(
+        /"viewCountText":\{"runs":\[\{"text":"(\d+)"\},\{"text":" watching"\}\]\}/
+      );
+      streamer.viewers = viewCountMatch ? parseInt(viewCountMatch[1]) : null;
 
       return { isLive: true, streamer };
     }
