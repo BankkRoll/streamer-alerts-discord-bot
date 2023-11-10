@@ -5,7 +5,6 @@ let fetch;
   fetch = (await import("node-fetch")).default;
 })();
 
-// TODO: Fix all fields to return info need bio, subscribersCount and start time not fully working
 async function checkYouTubeLive(streamer) {
   try {
     const response = await fetch(`https://www.youtube.com/@${streamer.name}`);
