@@ -1,33 +1,32 @@
 {
   "name": "streamer-alerts-bot",
-  "version": "1.0.0",
-  "description": "Streamer Alerts Discord Bot",
-  "main": "./src/index.js",
+  "version": "2.0.0",
+  "description": "Discord bot for multi-platform streamer live alerts",
+  "main": "dist/index.js",
+  "type": "module",
   "scripts": {
-    "start": "node .",
-    "dev": "nodemon .",
-    "format": "prettier --write .",
-    "lint": "eslint . --fix",
-    "test": "jest"
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "deploy": "tsx scripts/deploy.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts",
+    "format": "prettier --write \"src/**/*.ts\""
   },
-  "author": "bankkroll",
-  "license": "MIT",
   "dependencies": {
-    "@sapphire/discord.js-utilities": "^5.0.0",
-    "@sapphire/framework": "^3.1.0",
-    "@sapphire/ratelimits": "^2.4.4",
-    "@sapphire/time-utilities": "^1.7.6",
-    "discord.js": "^13.16.0",
-    "enmap": "^5.9.1",
-    "kick.com-api": "^0.1.52",
-    "moment": "^2.29.4",
-    "sapphire-plugin-modal-commands": "^1.0.9",
-    "tiktok-live-connector": "^1.0.5"
+    "discord.js": "^14.14.1",
+    "dotenv": "^16.3.1"
   },
   "devDependencies": {
-    "eslint": "^8.0.0",
-    "jest": "^28.0.0",
-    "nodemon": "^2.0.19",
-    "prettier": "^2.5.1"
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0",
+    "tsx": "^4.6.0",
+    "eslint": "^8.55.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "prettier": "^3.1.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
