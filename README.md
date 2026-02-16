@@ -103,18 +103,6 @@ npm run lint      # Lint code
 
 ---
 
-## Tech Stack
-
-| Technology         | Purpose                   |
-| ------------------ | ------------------------- |
-| **TypeScript**     | Type-safe development     |
-| **discord.js v14** | Discord API               |
-| **Enmap**          | Simple persistent storage |
-| **node-fetch**     | HTTP requests             |
-| **kick.com-api**   | Kick public API wrapper   |
-
----
-
 ## Platform Colors & Emojis
 
 | Platform | Color     | Emoji |
