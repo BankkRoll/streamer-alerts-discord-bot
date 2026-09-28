@@ -123,6 +123,14 @@ const discord = {
   clientId: requireString("CLIENT_ID"),
   /** When set, commands deploy to this guild instantly instead of globally. */
   guildId: nullableString("GUILD_ID"),
+  /**
+   * Reconcile slash commands with Discord during startup.
+   *
+   * The sync compares before it writes, so a normal restart costs one read and
+   * nothing else. Disable it only if commands are managed by a separate
+   * deployment step.
+   */
+  syncCommands: boolean("SYNC_COMMANDS_ON_START", true),
 } as const;
 
 const storage = {

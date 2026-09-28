@@ -14,6 +14,7 @@
 import { config } from "./config/index.js";
 import { StreamerBot } from "./client/StreamerBot.js";
 import { registerEvents } from "./events/index.js";
+import { syncCommands } from "./services/CommandSync.js";
 import { StreamPoller } from "./services/StreamPoller.js";
 import { disposeContext, initialiseContext } from "./services/context.js";
 import { logger } from "./utils/logger.js";
@@ -33,6 +34,20 @@ async function main(): Promise<void> {
   logger.info("Starting streamer alerts bot");
 
   const { repository } = await initialiseContext();
+
+  if (config.discord.syncCommands) {
+    try {
+      await syncCommands();
+    } catch (error) {
+      // A failed sync leaves whatever Discord already had registered, which is
+      // usually still serviceable. Refusing to start over it would turn a
+      // transient API problem into an outage.
+      logger.error(
+        "Command sync failed; continuing with previously registered commands:",
+        error,
+      );
+    }
+  }
 
   const client = new StreamerBot();
   const poller = new StreamPoller(client, repository);

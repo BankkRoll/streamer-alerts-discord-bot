@@ -11,8 +11,9 @@ cp .env.example .env    # DISCORD_TOKEN and CLIENT_ID are the only required valu
 pnpm run dev
 ```
 
-Set `GUILD_ID` while developing so `pnpm run deploy` registers commands
-instantly instead of waiting on global propagation.
+Set `GUILD_ID` while developing so commands register to that guild instantly
+instead of waiting on global propagation. The bot syncs them on startup; there
+is no separate deploy step.
 
 ## Before opening a pull request
 

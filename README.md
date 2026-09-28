@@ -35,12 +35,17 @@ platform, handle, alert channel and optional mention role in one step.
 git clone <your-fork> && cd streamer-alerts-discord-bot
 npm install
 cp .env.example .env     # fill in DISCORD_TOKEN and CLIENT_ID
-npm run deploy           # register slash commands
 npm run dev              # or: npm run build && npm start
 ```
 
-Set `GUILD_ID` in `.env` while developing so commands appear instantly.
-Leave it empty to deploy globally, which takes up to an hour to propagate.
+Slash commands register themselves on startup. The bot compares what Discord
+has registered against what the code defines and writes only when they differ,
+so a normal restart costs one read and nothing more — new commands appear,
+removed ones disappear, and changed definitions update.
+
+Set `GUILD_ID` in `.env` while developing so commands appear instantly. Leave
+it empty to register globally, which takes up to an hour to propagate. Set
+`SYNC_COMMANDS_ON_START=false` to manage commands from a separate process.
 
 The bot needs only the **Guilds** intent — no privileged intents to enable. In
 each alert channel it needs **View Channel** and **Send Messages**.
