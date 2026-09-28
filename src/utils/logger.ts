@@ -1,96 +1,118 @@
 /**
- * Log levels
+ * Minimal levelled logger.
+ *
+ * Deliberately dependency-free: the bot's logging needs are a handful of
+ * levels and optional JSON output, which is not worth a package. Output goes
+ * to stdout for informational lines and stderr for warnings and errors, so
+ * process supervisors can route them separately.
+ *
+ * @module utils/logger
  */
-type LogLevel = "debug" | "info" | "warn" | "error";
 
-/**
- * ANSI color codes for terminal output
- */
-const colors = {
-  reset: "\x1b[0m",
-  dim: "\x1b[2m",
-  red: "\x1b[31m",
-  green: "\x1b[32m",
-  yellow: "\x1b[33m",
-  blue: "\x1b[34m",
-  cyan: "\x1b[36m",
+import { config } from "../config/index.js";
+import type { LogLevel } from "../config/index.js";
+
+/** Severity ordering used to decide what reaches the output. */
+const LEVEL_WEIGHT: Record<LogLevel, number> = {
+  debug: 10,
+  info: 20,
+  warn: 30,
+  error: 40,
+  silent: 100,
 };
 
-/**
- * Get current timestamp string
- */
-function getTimestamp(): string {
-  return new Date().toISOString().replace("T", " ").slice(0, 19);
+/** ANSI colours, applied only when stdout is an interactive terminal. */
+const COLOURS = {
+  reset: "[0m",
+  dim: "[2m",
+  red: "[31m",
+  yellow: "[33m",
+  blue: "[34m",
+  magenta: "[35m",
+  cyan: "[36m",
+} as const;
+
+/** Colour is noise in a log aggregator, so only use it for a real terminal. */
+const useColour = process.stdout.isTTY && !config.runtime.logJson;
+
+const threshold = LEVEL_WEIGHT[config.runtime.logLevel];
+
+/** Wrap text in an ANSI colour when colour output is enabled. */
+function paint(colour: keyof typeof COLOURS, text: string): string {
+  return useColour ? `${COLOURS[colour]}${text}${COLOURS.reset}` : text;
 }
 
 /**
- * Format log message with timestamp and level
+ * Reduce an unknown thrown value to something worth printing.
+ *
+ * `catch` gives `unknown`, and printing a bare object loses the stack, so
+ * errors are unwrapped explicitly.
  */
-function formatMessage(
-  level: LogLevel,
-  message: string,
-  ...args: unknown[]
-): string {
-  const timestamp = `${colors.dim}[${getTimestamp()}]${colors.reset}`;
-  const levelColors: Record<LogLevel, string> = {
-    debug: colors.cyan,
-    info: colors.green,
-    warn: colors.yellow,
-    error: colors.red,
-  };
-  const levelStr = `${levelColors[level]}[${level.toUpperCase()}]${colors.reset}`;
+function formatArgument(value: unknown): string {
+  if (value instanceof Error) {
+    return value.stack ?? `${value.name}: ${value.message}`;
+  }
+  if (typeof value === "string") return value;
 
-  const formattedArgs =
-    args.length > 0
-      ? " " +
-        args
-          .map((arg) =>
-            typeof arg === "object"
-              ? JSON.stringify(arg, null, 2)
-              : String(arg),
-          )
-          .join(" ")
-      : "";
+  try {
+    return JSON.stringify(value);
+  } catch {
+    // Circular structures and BigInt both defeat JSON.stringify.
+    return String(value);
+  }
+}
 
-  return `${timestamp} ${levelStr} ${message}${formattedArgs}`;
+/** Emit one line at `level`, honouring the configured threshold and format. */
+function emit(level: Exclude<LogLevel, "silent">, args: unknown[]): void {
+  if (LEVEL_WEIGHT[level] < threshold) return;
+
+  const timestamp = new Date().toISOString();
+  const message = args.map(formatArgument).join(" ");
+  const stream = LEVEL_WEIGHT[level] >= LEVEL_WEIGHT.warn ? process.stderr : process.stdout;
+
+  if (config.runtime.logJson) {
+    stream.write(`${JSON.stringify({ timestamp, level, message })}\n`);
+    return;
+  }
+
+  const colour = (
+    { debug: "dim", info: "blue", warn: "yellow", error: "red" } as const
+  )[level];
+
+  stream.write(
+    `${paint("dim", timestamp)} ${paint(colour, level.toUpperCase().padEnd(5))} ${message}\n`,
+  );
 }
 
 /**
- * Logger utility
+ * Application logger.
+ *
+ * @example
+ * ```ts
+ * logger.info("Bot ready");
+ * logger.error("Failed to send alert:", error);
+ * ```
  */
 export const logger = {
-  debug(message: string, ...args: unknown[]): void {
-    if (process.env.LOG_LEVEL === "debug") {
-      console.log(formatMessage("debug", message, ...args));
-    }
-  },
-
-  info(message: string, ...args: unknown[]): void {
-    console.log(formatMessage("info", message, ...args));
-  },
-
-  warn(message: string, ...args: unknown[]): void {
-    console.warn(formatMessage("warn", message, ...args));
-  },
-
-  error(message: string, ...args: unknown[]): void {
-    console.error(formatMessage("error", message, ...args));
-  },
+  /** Verbose detail, hidden unless `LOG_LEVEL=debug`. */
+  debug: (...args: unknown[]): void => { emit("debug", args); },
+  /** Normal operational messages. */
+  info: (...args: unknown[]): void => { emit("info", args); },
+  /** Recoverable problems worth an operator's attention. */
+  warn: (...args: unknown[]): void => { emit("warn", args); },
+  /** Failures. */
+  error: (...args: unknown[]): void => { emit("error", args); },
 
   /**
-   * Log a platform check result
+   * Log the outcome of one platform check.
+   *
+   * @param platform - Platform that was polled.
+   * @param username - Handle that was checked.
+   * @param isLive - Whether the streamer was found live.
    */
-  platform(platform: string, username: string, isLive: boolean): void {
-    const status = isLive
-      ? `${colors.green}LIVE${colors.reset}`
-      : `${colors.dim}offline${colors.reset}`;
-    this.debug(`[${platform}] ${username}: ${status}`);
+  platform: (platform: string, username: string, isLive: boolean): void => {
+    if (LEVEL_WEIGHT.debug < threshold) return;
+    const state = isLive ? paint("magenta", "LIVE") : paint("dim", "offline");
+    emit("debug", [`${paint("cyan", platform)} ${username} ${state}`]);
   },
-
-  /**
-   * Log a command execution
-   */
-  command(name: string, user: string, guild: string): void {
-    this.info(`Command /${name} executed by ${user} in ${guild}`);
-  },
-};
+} as const;

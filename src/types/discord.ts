@@ -1,84 +1,57 @@
-import {
+/**
+ * Discord-facing structural types.
+ *
+ * @module types/discord
+ */
+
+import type {
+  AutocompleteInteraction,
+  ChatInputCommandInteraction,
   Client,
   Collection,
   SlashCommandBuilder,
+  SlashCommandOptionsOnlyBuilder,
   SlashCommandSubcommandsOnlyBuilder,
-  ChatInputCommandInteraction,
-  AutocompleteInteraction,
 } from "discord.js";
 
+/** Every builder shape a command's `data` may take. */
+export type CommandData =
+  | SlashCommandBuilder
+  | SlashCommandOptionsOnlyBuilder
+  | SlashCommandSubcommandsOnlyBuilder;
+
 /**
- * Command structure
+ * One slash command.
+ *
+ * @example
+ * ```ts
+ * export const ping: Command = {
+ *   data: new SlashCommandBuilder().setName("ping").setDescription("Pong"),
+ *   cooldownMs: 5_000,
+ *   async execute(interaction) {
+ *     await interaction.reply("Pong");
+ *   },
+ * };
+ * ```
  */
 export interface Command {
-  /** Slash command data */
-  data:
-    | SlashCommandBuilder
-    | SlashCommandSubcommandsOnlyBuilder
-    | Omit<SlashCommandBuilder, "addSubcommand" | "addSubcommandGroup">;
-  /** Execute the command */
+  /** Command definition registered with Discord. */
+  data: CommandData;
+  /**
+   * Per-user cooldown for this command.
+   *
+   * Omit to use the configured default. Set generously on commands that hit
+   * external platforms.
+   */
+  cooldownMs?: number;
+  /** Handle an invocation. */
   execute: (interaction: ChatInputCommandInteraction) => Promise<void>;
-  /** Handle autocomplete (optional) */
+  /** Supply autocomplete choices, when the command declares any. */
   autocomplete?: (interaction: AutocompleteInteraction) => Promise<void>;
 }
 
-/**
- * Extended Discord client with commands collection
- */
+/** Client extended with the command registry. */
 export interface StreamerBotClient extends Client {
+  /** Commands keyed by name. */
   commands: Collection<string, Command>;
-}
-
-/**
- * Button custom ID prefixes for routing
- */
-export const ButtonIds = {
-  CONFIRM_REMOVE: "confirm_remove",
-  CANCEL: "cancel",
-  PAGE_PREV: "page_prev",
-  PAGE_NEXT: "page_next",
-  WATCH_STREAM: "watch_stream",
-} as const;
-
-/**
- * Select menu custom ID prefixes
- */
-export const SelectMenuIds = {
-  CHANNEL_SELECT: "channel_select",
-  STREAMER_SELECT: "streamer_select",
-  HELP_CATEGORY: "help_category",
-} as const;
-
-/**
- * Interaction custom data stored in customId
- */
-export interface InteractionData {
-  /** Action type */
-  action: string;
-  /** Streamer ID (platform:username) */
-  streamerId?: string;
-  /** Page number for pagination */
-  page?: number;
-  /** Platform for add flow */
-  platform?: string;
-  /** Username for add flow */
-  username?: string;
-}
-
-/**
- * Encode interaction data into a customId string
- */
-export function encodeCustomId(data: InteractionData): string {
-  return JSON.stringify(data);
-}
-
-/**
- * Decode a customId string into interaction data
- */
-export function decodeCustomId(customId: string): InteractionData | null {
-  try {
-    return JSON.parse(customId) as InteractionData;
-  } catch {
-    return null;
-  }
 }

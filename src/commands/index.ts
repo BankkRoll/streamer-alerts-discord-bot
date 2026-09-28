@@ -1,30 +1,56 @@
-import type { Command } from "../types/index.js";
-import type { StreamerBot } from "../client/StreamerBot.js";
-import { logger } from "../utils/logger.js";
+/**
+ * Command registry.
+ *
+ * Commands are imported statically rather than discovered by scanning the
+ * filesystem: the set is small, static imports are type-checked, and a
+ * renamed file becomes a build error instead of a command that silently stops
+ * being registered.
+ *
+ * @module commands
+ */
 
-// Import commands
-import { streamerCommand } from "./streamer/index.js";
-import { helpCommand } from "./util/help.js";
-import { pingCommand } from "./util/ping.js";
+import { Collection } from "discord.js";
+import type { RESTPostAPIApplicationCommandsJSONBody } from "discord.js";
+import { helpCommand } from "./help.js";
+import { pingCommand } from "./ping.js";
+import { streamerCommand } from "./streamer.js";
+import type { Command } from "../types/discord.js";
+
+/** Every command this bot exposes. */
+export const commands: readonly Command[] = [
+  streamerCommand,
+  helpCommand,
+  pingCommand,
+];
 
 /**
- * All available commands
+ * Build the name-keyed registry used at dispatch time.
+ *
+ * @returns Commands keyed by their registered name.
+ * @throws When two commands share a name, which would otherwise mean one
+ *   silently shadows the other.
  */
-export const commands: Command[] = [streamerCommand, helpCommand, pingCommand];
+export function createCommandRegistry(): Collection<string, Command> {
+  const registry = new Collection<string, Command>();
 
-/**
- * Register all commands with the client
- */
-export function registerCommands(client: StreamerBot): void {
   for (const command of commands) {
-    client.registerCommand(command);
+    const { name } = command.data;
+    if (registry.has(name)) {
+      throw new Error(`Duplicate command name registered: ${name}`);
+    }
+    registry.set(name, command);
   }
-  logger.info(`Registered ${commands.length} commands`);
+
+  return registry;
 }
 
 /**
- * Get command data for deployment
+ * Serialise every command for deployment.
+ *
+ * @returns Payloads accepted by Discord's bulk command overwrite endpoints.
  */
-export function getCommandData() {
-  return commands.map((cmd) => cmd.data.toJSON());
+export function getCommandData(): RESTPostAPIApplicationCommandsJSONBody[] {
+  return commands.map(
+    (command) => command.data.toJSON() as RESTPostAPIApplicationCommandsJSONBody,
+  );
 }

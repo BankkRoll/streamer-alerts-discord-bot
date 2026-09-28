@@ -1,0 +1,10 @@
+services:
+  bot:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      # Persist the JSON driver's data across container rebuilds.
+      - ./data:/app/data
+    # Give the bot time to flush storage before SIGKILL.
+    stop_grace_period: 15s

@@ -1,113 +1,162 @@
 /**
- * Supported streaming platforms
+ * Core domain types: platforms, tracked streamers, and live status.
+ *
+ * @module types/streamer
  */
-export type Platform = "kick" | "twitch" | "youtube" | "rumble" | "tiktok";
+
+/** Streaming platforms this bot can poll. */
+export const PLATFORM_IDS = [
+  "kick",
+  "twitch",
+  "youtube",
+  "rumble",
+  "tiktok",
+] as const;
+
+/** A supported streaming platform. */
+export type Platform = (typeof PLATFORM_IDS)[number];
 
 /**
- * Streamer data stored in the database
+ * Narrow an arbitrary string to a {@link Platform}.
+ *
+ * @param value - Candidate platform identifier, typically from user input.
+ * @returns `true` when `value` names a supported platform.
  */
-export interface Streamer {
-  /** Unique identifier: "platform:username" */
-  id: string;
-  /** Streaming platform */
-  platform: Platform;
-  /** Platform username/handle */
-  username: string;
-  /** Display name (if different from username) */
-  displayName?: string;
-  /** Discord channel ID for notifications */
-  channelId: string;
-  /** Current live status */
-  isLive: boolean;
-  /** Last time detected live (ISO timestamp) */
-  lastLiveAt?: string;
-
-  // Live data (updated each poll)
-  /** Current stream title */
-  title?: string;
-  /** Current viewer count */
-  viewers?: number;
-  /** Follower/subscriber count */
-  followers?: number;
-  /** Stream thumbnail URL */
-  thumbnail?: string;
-  /** Profile image URL */
-  profileImage?: string;
-  /** Stream start time (ISO timestamp) */
-  startedAt?: string;
-  /** Verified status on platform */
-  verified?: boolean;
-  /** Bio/description */
-  bio?: string;
+export function isPlatform(value: string): value is Platform {
+  return (PLATFORM_IDS as readonly string[]).includes(value);
 }
 
 /**
- * Live status returned by platform checkers
+ * A streamer tracked by one guild.
+ *
+ * Live fields are refreshed every poll and are absent until the first
+ * successful check, so every consumer must treat them as optional.
+ */
+export interface Streamer {
+  /** Stable identifier in the form `platform:username`, lowercased. */
+  id: string;
+  /** Platform this streamer broadcasts on. */
+  platform: Platform;
+  /** Platform handle, as entered by the user. */
+  username: string;
+  /** Platform display name when it differs from the handle. */
+  displayName?: string;
+  /** Discord channel that receives alerts for this streamer. */
+  channelId: string;
+  /** Role pinged when this streamer goes live. */
+  mentionRoleId?: string;
+  /** Whether the most recent successful check saw a live stream. */
+  isLive: boolean;
+  /** ISO timestamp of the last time the streamer was seen live. */
+  lastLiveAt?: string;
+  /** ISO timestamp of the last alert sent, used to suppress duplicates. */
+  lastAlertedAt?: string;
+  /** ISO timestamp this streamer was added. */
+  addedAt: string;
+  /** Discord user id that added this streamer. */
+  addedBy?: string;
+  /**
+   * Whether polling is paused for this streamer.
+   *
+   * Set automatically when the alert channel becomes unreachable, so a
+   * deleted channel does not generate an error every cycle.
+   */
+  paused?: boolean;
+  /** Human-readable reason accompanying {@link Streamer.paused}. */
+  pausedReason?: string;
+  /** Consecutive failed checks, used for backoff and health reporting. */
+  failureCount?: number;
+
+  /** Stream title from the most recent check. */
+  title?: string;
+  /** Viewer count from the most recent check. */
+  viewers?: number;
+  /** Follower or subscriber count from the most recent check. */
+  followers?: number;
+  /** Stream preview image URL. */
+  thumbnail?: string;
+  /** Profile image URL. */
+  profileImage?: string;
+  /** ISO timestamp the current stream started. */
+  startedAt?: string;
+  /** Whether the platform marks this account as verified. */
+  verified?: boolean;
+  /** Profile biography or description. */
+  bio?: string;
+  /** Current category or game. */
+  category?: string;
+}
+
+/**
+ * Result of checking one streamer against their platform.
+ *
+ * A check that fails sets {@link LiveStatus.error} and reports `isLive: false`,
+ * so callers never have to distinguish "offline" from "unknown" unless they
+ * care to.
  */
 export interface LiveStatus {
-  /** Whether the streamer is currently live */
+  /** Whether the streamer is broadcasting right now. */
   isLive: boolean;
-  /** Platform name */
+  /** Platform that was checked. */
   platform: Platform;
-  /** Username checked */
+  /** Handle that was checked. */
   username: string;
-  /** Stream title */
-  title?: string;
-  /** Current viewer count */
-  viewers?: number;
-  /** Follower/subscriber count */
-  followers?: number;
-  /** Stream thumbnail URL */
-  thumbnail?: string;
-  /** Profile image URL */
-  profileImage?: string;
-  /** Stream start time (ISO timestamp) */
-  startedAt?: string;
-  /** Direct URL to the stream */
+  /** Canonical URL of the channel or stream. */
   url: string;
-  /** Verified status */
+  /** Display name reported by the platform. */
+  displayName?: string;
+  /** Current stream title. */
+  title?: string;
+  /** Current viewer count. */
+  viewers?: number;
+  /** Follower or subscriber count. */
+  followers?: number;
+  /** Stream preview image URL. */
+  thumbnail?: string;
+  /** Profile image URL. */
+  profileImage?: string;
+  /** ISO timestamp the stream started. */
+  startedAt?: string;
+  /** Whether the platform marks this account as verified. */
   verified?: boolean;
-  /** Bio/description */
+  /** Profile biography or description. */
   bio?: string;
-  /** Stream category/game */
+  /** Category or game being streamed. */
   category?: string;
-  /** Category icon URL */
+  /** Icon representing {@link LiveStatus.category}. */
   categoryIcon?: string;
-  /** Stream tags */
+  /** Free-form tags attached to the stream. */
   tags?: string[];
-  /** Stream language */
+  /** Stream language code. */
   language?: string;
-  /** Whether stream is marked as mature */
+  /** Whether the stream is flagged as mature. */
   isMature?: boolean;
-  /** Error message if check failed */
+  /** Populated when the check failed; `isLive` is then not meaningful. */
   error?: string;
 }
 
-/**
- * Guild settings stored in Enmap
- */
+/** Everything one guild stores. */
 export interface GuildSettings {
-  /** Array of tracked streamers */
+  /** Streamers tracked by this guild. */
   streamers: Streamer[];
+  /** Schema version, used to migrate stored records forward. */
+  version?: number;
 }
 
-/**
- * Function signature for platform checkers
- */
-export type PlatformChecker = (username: string) => Promise<LiveStatus>;
+/** Checks whether a single handle is currently live. */
+export type PlatformChecker = (
+  username: string,
+  signal?: AbortSignal,
+) => Promise<LiveStatus>;
 
-/**
- * Platform configuration
- */
+/** Presentation and routing metadata for one platform. */
 export interface PlatformConfig {
-  /** Display name */
+  /** Name shown in the UI. */
   name: string;
-  /** Embed color (hex as number) */
+  /** Accent colour used for containers and buttons. */
   color: number;
-  /** Platform emoji */
+  /** Emoji representing the platform. */
   emoji: string;
-  /** URL template with {username} placeholder */
+  /** URL template containing a `{username}` placeholder. */
   urlTemplate: string;
-  /** Platform checker function */
-  checker: PlatformChecker;
 }
