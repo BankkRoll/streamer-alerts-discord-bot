@@ -1,55 +1,53 @@
-import 'dotenv/config';
-import { REST, Routes } from 'discord.js';
-import { getCommandData } from '../src/commands/index.js';
-
 /**
- * Deploy slash commands to Discord
+ * Slash command deployment.
+ *
+ * Run this whenever a command's definition changes — its name, description, or
+ * options. Changing only a command's implementation needs no redeployment.
+ *
+ * Guild deployment is instant and is the right choice while developing.
+ * Global deployment reaches every server but can take up to an hour to
+ * propagate, so it is reserved for release.
+ *
+ * @module scripts/deploy
  */
+
+import { REST, Routes } from "discord.js";
+import { config } from "../src/config/index.js";
+import { getCommandData } from "../src/commands/index.js";
+
+/** Deploy every command, then report what landed where. */
 async function deploy(): Promise<void> {
-  const token = process.env.DISCORD_TOKEN;
-  const clientId = process.env.CLIENT_ID;
-  const guildId = process.env.GUILD_ID;
-
-  if (!token) {
-    console.error('❌ DISCORD_TOKEN is not set');
-    process.exit(1);
-  }
-
-  if (!clientId) {
-    console.error('❌ CLIENT_ID is not set');
-    process.exit(1);
-  }
-
   const commands = getCommandData();
-  const rest = new REST().setToken(token);
+  const rest = new REST().setToken(config.discord.token);
 
-  try {
-    console.log(`🔄 Deploying ${commands.length} commands...`);
+  const target = config.discord.guildId
+    ? Routes.applicationGuildCommands(
+        config.discord.clientId,
+        config.discord.guildId,
+      )
+    : Routes.applicationCommands(config.discord.clientId);
 
-    if (guildId) {
-      // Guild-specific deployment (instant)
-      await rest.put(
-        Routes.applicationGuildCommands(clientId, guildId),
-        { body: commands }
-      );
-      console.log(`✅ Deployed to guild ${guildId}`);
-    } else {
-      // Global deployment (takes up to 1 hour)
-      await rest.put(
-        Routes.applicationCommands(clientId),
-        { body: commands }
-      );
-      console.log('✅ Deployed globally (may take up to 1 hour to propagate)');
-    }
+  const scope = config.discord.guildId
+    ? `guild ${config.discord.guildId}`
+    : "globally";
 
-    console.log('\nCommands deployed:');
-    commands.forEach(cmd => {
-      console.log(`  • /${cmd.name} - ${cmd.description}`);
-    });
-  } catch (error) {
-    console.error('❌ Failed to deploy commands:', error);
-    process.exit(1);
+  console.log(`Deploying ${commands.length} command(s) ${scope}…`);
+
+  // `put` replaces the whole command set, so a command deleted from the
+  // registry disappears from Discord rather than lingering.
+  const result = (await rest.put(target, { body: commands })) as unknown[];
+
+  console.log(`Deployed ${result.length} command(s) ${scope}.`);
+  for (const command of commands) {
+    console.log(`  /${command.name} — ${command.description}`);
+  }
+
+  if (!config.discord.guildId) {
+    console.log("\nGlobal commands can take up to an hour to appear.");
   }
 }
 
-deploy();
+deploy().catch((error: unknown) => {
+  console.error("Deployment failed:", error);
+  process.exitCode = 1;
+});

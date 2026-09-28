@@ -25,3 +25,9 @@ npm-debug.log*
 
 # TypeScript
 *.tsbuildinfo
+
+# Local scratch space for throwaway scripts
+.scratch/
+
+# Test coverage
+coverage/

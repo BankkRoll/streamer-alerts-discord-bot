@@ -1,174 +1,181 @@
 # Streamer Alerts Bot
 
-A modern, type-safe Discord bot that monitors streaming platforms and sends beautiful notifications when your favorite streamers go live. Built with TypeScript, discord.js v14, and modern Discord components.
+A Discord bot that watches streamers across five platforms and posts an alert
+the moment one goes live. Built on Discord's **Components V2** display system,
+with no API keys and no database to set up.
 
-**No API keys required** - Uses public endpoints and HTML parsing to fetch live status.
+```
+/streamer add      track a streamer and pick where alerts land
+/streamer remove   stop tracking someone
+/streamer list     see everyone tracked in this server
+/help              commands and supported platforms
+/ping              check the bot is responsive
+```
 
-**Simple setup** - Just add your bot token and run. Uses Enmap for zero-config persistent storage.
+## Why it looks different
 
-<img width="452" height="507" alt="image" src="https://github.com/user-attachments/assets/2e6d46d8-d03d-4795-a1ee-2c88baac673c" />
+Most alert bots post embeds. This one builds every surface from Components V2
+containers, sections, media galleries and separators, so alerts carry the
+platform's accent colour, the streamer's avatar as a section accessory, and the
+stream preview inline — laid out deliberately rather than as an embed's fixed
+shape.
 
-<img width="470" height="518" alt="image" src="https://github.com/user-attachments/assets/a44962f7-4d90-4447-9eb3-33af8e04f538" />
+`/streamer add` is a single modal built from `Label` components, collecting the
+platform, handle, alert channel and optional mention role in one step.
 
-<img width="455" height="438" alt="image" src="https://github.com/user-attachments/assets/86c33a33-c776-48d0-a51e-e8befef3ace1" />
+## Requirements
 
-<img width="447" height="271" alt="image" src="https://github.com/user-attachments/assets/eb9978ae-49f1-428d-b53d-7e12b79049bd" />
+- **Node.js 20.10** or newer
+- **discord.js 14.27** or newer — earlier versions lack the `Label`,
+  `RadioGroup` and `Checkbox` builders the modal flow depends on
 
-<img width="380" height="542" alt="image" src="https://github.com/user-attachments/assets/3a164b4b-afff-4422-83b3-e7ab77d6eb87" />
+## Setup
 
----
-
-## Features
-
-- **Multi-Platform Support**: Kick, Twitch, YouTube, Rumble, TikTok
-- **Real-Time Alerts**: 60-second polling with smart duplicate detection
-- **Modern Discord UI**: Buttons, select menus, modals, rich embeds
-- **Type-Safe**: Full TypeScript with strict typing
-- **Zero API Keys**: Works without platform API credentials
-- **Zero Config Database**: Enmap handles persistence automatically
-- **Per-Server Config**: Each Discord server manages its own streamer list
-
----
-
-## Commands
-
-| Command            | Description                | Permissions     |
-| ------------------ | -------------------------- | --------------- |
-| `/streamer add`    | Add a streamer to track    | Manage Channels |
-| `/streamer remove` | Remove a streamer          | Manage Channels |
-| `/streamer list`   | List all tracked streamers | None            |
-| `/help`            | Interactive help menu      | None            |
-| `/ping`            | Check bot latency          | None            |
-
-### /streamer add \<platform\> \<username\>
-
-**Options:**
-
-- `platform` - Choose: Kick, Twitch, YouTube, Rumble, TikTok
-- `username` - Streamer's username/handle
-
-**Flow:**
-
-1. Bot shows embed with channel select menu
-2. Pick notification channel
-3. Streamer added → Success embed
-
-### /streamer remove
-
-**Flow:**
-
-1. Bot shows embed with streamer select menu (your tracked streamers)
-2. Pick streamer to remove
-3. Confirm with Yes/Cancel buttons
-4. Streamer removed → Success embed
-
-### /streamer list
-
-**Shows:**
-
-- All tracked streamers with platform emoji
-- Notification channel for each
-- Live status indicator (🔴 LIVE)
-- Pagination buttons if > 10 streamers
-
----
-
-## Quick Start
-
-```bash
-# 1. Install dependencies
+```sh
+git clone <your-fork> && cd streamer-alerts-discord-bot
 npm install
-
-# 2. Copy environment file
-cp .env.example .env
-
-# 3. Add your Discord bot token to .env
-DISCORD_TOKEN=your_token_here
-
-# 4. Deploy slash commands
-npm run deploy
-
-# 5. Start the bot
-npm start
+cp .env.example .env     # fill in DISCORD_TOKEN and CLIENT_ID
+npm run deploy           # register slash commands
+npm run dev              # or: npm run build && npm start
 ```
 
-### Development
+Set `GUILD_ID` in `.env` while developing so commands appear instantly.
+Leave it empty to deploy globally, which takes up to an hour to propagate.
 
-```bash
-npm run dev       # Run with hot reload
-npm run build     # Compile TypeScript
-npm run typecheck # Check types
-npm run lint      # Lint code
+The bot needs only the **Guilds** intent — no privileged intents to enable. In
+each alert channel it needs **View Channel** and **Send Messages**.
+
+## Supported platforms
+
+| Platform | Data source | Notes |
+| --- | --- | --- |
+| Twitch | public GraphQL | Full metadata |
+| YouTube | watch page | Handles and channel IDs |
+| Kick | public API | May be blocked from some hosts; see below |
+| Rumble | channel page | Verifies it is a channel before parsing |
+| TikTok | live page | Detects captcha walls |
+
+No credentials are required for any of them. Each checker returns a descriptive
+error when a page changes shape, rather than silently reporting "offline" — so
+a broken scraper looks broken instead of looking quiet.
+
+> **Kick and cloud hosts.** Kick blocks some datacentre IPs by TLS fingerprint.
+> If Kick checks fail from your host, that is why; the bot reports it as an
+> error rather than a false offline, and every other platform is unaffected.
+
+## Configuration
+
+Every setting is an environment variable with a working default. Only
+`DISCORD_TOKEN` and `CLIENT_ID` are required. See [.env.example](.env.example)
+for the annotated list.
+
+The values worth knowing about:
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `STORAGE_DRIVER` | `json` | `json`, `memory`, or `keyv` |
+| `STORAGE_PATH` | `./data` | Where the JSON driver keeps its files |
+| `POLL_INTERVAL_MS` | `60000` | Gap between poll cycles |
+| `POLL_CONCURRENCY` | `5` | Simultaneous checks per cycle |
+| `ALERT_COOLDOWN_MS` | `1800000` | Suppress repeat alerts within this window |
+| `MAX_STREAMERS_PER_GUILD` | `100` | Per-guild cap |
+| `ITEMS_PER_PAGE` | `5` | Rows per `/streamer list` page |
+| `LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error`, `silent` |
+| `LOG_JSON` | `false` | JSON lines for log aggregators |
+
+Configuration is validated once at startup. A bad value stops the process with
+a message naming every problem at once, rather than one per restart.
+
+## Storage
+
+Storage is a small driver interface, and the default needs no installation.
+
+**`json`** (default) writes a single file under `STORAGE_PATH`. It is not a
+naive `writeFileSync`:
+
+- writes are debounced, so one poll cycle costs one disk write
+- each write goes to a temp file and is `rename`d into place, which is atomic
+- the previous good file is kept as `.bak`
+- on startup a corrupt file falls back to the backup, and if neither parses the
+  bot **refuses to start** rather than beginning with an empty dataset — an
+  empty start would let the next write destroy recoverable data
+
+**`memory`** persists nothing. Useful for tests and ephemeral deployments.
+
+**`keyv`** delegates to any [Keyv](https://keyv.org) backend — SQLite,
+Postgres, Redis, MySQL, Mongo. It is imported lazily, so the package is only
+needed if you select it:
+
+```sh
+npm install keyv @keyv/sqlite
 ```
 
----
-
-## Platform Colors & Emojis
-
-| Platform | Color     | Emoji |
-| -------- | --------- | ----- |
-| Kick     | `#53FC18` | 🟢    |
-| Twitch   | `#9146FF` | 🟣    |
-| YouTube  | `#FF0000` | 🔴    |
-| Rumble   | `#85C742` | 🟢    |
-| TikTok   | `#010101` | ⚫    |
-
----
-
-## How It Works
-
-### Polling Loop
-
-```
-Every 60 seconds:
-├── For each guild
-│   ├── Get tracked streamers from Enmap
-│   ├── For each streamer
-│   │   ├── Call platform checker
-│   │   ├── Compare title with cache
-│   │   ├── If live + new title → Send alert
-│   │   └── Update streamer data
-│   └── Save to Enmap
+```ini
+STORAGE_DRIVER=keyv
+STORAGE_CONNECTION_STRING=sqlite://data/bot.sqlite
 ```
 
-### Alert Embed
+Adding a backend means implementing five methods in `src/storage/types.ts`; the
+shared contract test suite then covers it automatically.
 
-```
-┌─────────────────────────────────────────┐
-│ 🟣 StreamerName is LIVE on Twitch       │
-├─────────────────────────────────────────┤
-│ Playing Minecraft - Building a Castle   │
-│                                         │
-│ 👀 Viewers    │ 👥 Followers │ ⏰ Started│
-│ 1,234         │ 50.2K        │ 2h ago   │
-│                                         │
-│ [Stream Preview Thumbnail]              │
-│                                         │
-│ [🟣 Watch on Twitch]                    │
-└─────────────────────────────────────────┘
+## Development
+
+```sh
+npm run dev          # watch mode
+npm run typecheck    # tsc --noEmit
+npm run lint         # eslint, type-aware
+npm test             # vitest
+npm run check        # all three, as CI runs them
 ```
 
----
+The test suite covers the storage drivers hard, including crash recovery,
+corruption handling, and a regression test for the concurrent-write bug that
+the repository's per-guild locking exists to prevent.
 
-## Bot Permissions
+## Architecture
 
-### Required Intents
+```
+src/
+  config/      validated, env-overridable settings
+  storage/     driver interface, json/memory/keyv drivers, guild repository
+  platforms/   per-platform checkers over a shared retrying fetch
+  ui/          Components V2 builders, theme, and the component-budget guard
+  commands/    slash commands
+  handlers/    button, select, and modal routing
+  services/    alert delivery, polling, runtime context
+  lib/         custom-id codec, cooldowns
+  events/      gateway wiring
+```
 
-- `Guilds`
-- `GuildMessages`
+Two details that carry most of the reliability:
 
-### Required Permissions
+**Per-guild write locks.** A poll cycle spends seconds awaiting HTTP between
+reading a guild's streamers and writing results back. Mutations are serialised
+per guild and re-read inside the lock, so a `/streamer add` landing mid-cycle
+is never overwritten.
 
-- Send Messages
-- Embed Links
-- Use External Emojis
+**A component budget guard.** Discord rejects messages over 40 components with
+an opaque 400. `src/ui/budget.ts` audits every payload before it is sent, and
+the list's page size is *derived* from the budget rather than hardcoded, so a
+row gaining a component cannot silently break pagination.
 
----
+## Notes on Components V2
+
+Worth knowing before changing the UI code:
+
+- `MessageFlags.IsComponentsV2` must be re-sent on **every** edit, not just the
+  first send. Omitting it on an edit is a 400.
+- The flag is **irreversible per message**. Once an alert is sent with it, that
+  message can never be edited back into an embed.
+- `content` and `embeds` stop working entirely under the flag.
+- A Section holds 1–3 Text Displays and exactly one accessory, which may be a
+  Button or a Thumbnail — never a select menu.
+- discord.js does **not** enforce the 5-component modal cap; a sixth builds
+  cleanly and is rejected by the API.
+
+Fuller notes, verified against the shipped builder typings, live in
+[.docs/](.docs/).
 
 ## License
 
-> [!IMPORTANT]
-> **Disclaimer:**
-> Please note that the APIs used in this bot are not owned or maintained by us. The usage of these APIs is at your own risk, and we make no guarantees regarding the availability, accuracy, or functionality of these services. If you are the endpoint owner and would like to remove them please open a issue and ill handle it accordingly.
-
-This project is licensed under the MIT License. For more details, see the [LICENSE](./LICENSE) file in the repository.
+MIT — see [LICENSE](LICENSE).
