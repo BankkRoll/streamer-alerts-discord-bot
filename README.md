@@ -50,6 +50,77 @@ it empty to register globally, which takes up to an hour to propagate. Set
 The bot needs only the **Guilds** intent — no privileged intents to enable. In
 each alert channel it needs **View Channel** and **Send Messages**.
 
+## Deploy anywhere
+
+The bot is a single long-running Node process with no database to provision,
+so it runs on anything that keeps Node 20.10+ online around the clock: a panel
+host, a container platform, a VPS, or a spare machine at home.
+
+[![Deploy on SparkedHost](https://img.shields.io/badge/Deploy%20on-SparkedHost-FF6A00?style=for-the-badge)](https://billing.sparkedhost.com/aff.php?aff=2551)
+[![Deploy on Railway](https://img.shields.io/badge/Deploy%20on-Railway-7B2FBE?style=for-the-badge)](https://railway.com?referralCode=BankkRoll)
+
+<sub>The two buttons above are referral links. Signing up through them
+supports the project at no extra cost to you.</sub>
+
+| Host | Type | Getting started |
+| --- | --- | --- |
+| [SparkedHost](https://billing.sparkedhost.com/aff.php?aff=2551) | Panel | [Steps below](#sparkedhost-and-other-panel-hosts) |
+| [Railway](https://railway.com?referralCode=BankkRoll) | Container | [Steps below](#railway) |
+| [PebbleHost](https://pebblehost.com) | Panel | Same steps as SparkedHost |
+| [Bot-Hosting.net](https://bot-hosting.net) | Panel, free tier | Same steps as SparkedHost |
+| [Cybrancee](https://cybrancee.com) | Panel | Same steps as SparkedHost |
+| [Render](https://render.com) | Container | New **Background Worker** from this repo; add a disk at `/app/data` |
+| [Koyeb](https://www.koyeb.com) | Container | New **Worker** service from this repo using the `Dockerfile` |
+| [Fly.io](https://fly.io) | Container | `fly launch`, then a volume mounted at `/app/data` |
+| [Hetzner](https://www.hetzner.com/cloud) | VPS | Install Docker, clone, `docker compose up -d` |
+| [Oracle Cloud Free Tier](https://www.oracle.com/cloud/free/) | VPS | Same steps as Hetzner |
+| Your own machine | Any | Follow [Setup](#setup), or `docker compose up -d` |
+
+Wherever it runs, set `DISCORD_TOKEN` and `CLIENT_ID`, and give `data/`
+(`/app/data` in Docker) **persistent storage**. A host that wipes the
+filesystem on redeploy loses every tracked streamer unless you switch to
+`STORAGE_DRIVER=keyv` with a hosted database. Run exactly **one** instance;
+two would post every alert twice.
+
+### SparkedHost and other panel hosts
+
+1. Order a **Discord Bot Hosting** plan from
+   [SparkedHost](https://billing.sparkedhost.com/aff.php?aff=2551) and pick the
+   **Node.js** server type, version 20 or newer. The smallest plan is enough.
+2. In the panel, open **Startup** and set the Git repository to
+   `https://github.com/BankkRoll/streamer-alerts-discord-bot` (or your fork),
+   the branch to `main`, and the main file to `index.js`. If your panel has no
+   Git option, upload the repository through **Files** instead.
+3. In **Files**, create a `.env` file containing `DISCORD_TOKEN=` and
+   `CLIENT_ID=` with your values. Copy any other settings you want from
+   [.env.example](.env.example).
+4. Press **Start**. The console shows the TypeScript build and then
+   `Logged in as …` once the bot is online.
+
+The root `index.js` is a small launcher for panel hosts. They run
+`npm install` and then `node index.js` with no build step in between, so the
+launcher compiles the source before starting the bot. Alerts are saved to
+`data/` in the server's files, so they survive restarts and reinstalls.
+
+**Running your own panel?** Import
+[deploy/pterodactyl/egg-streamer-alerts-bot.json](deploy/pterodactyl/egg-streamer-alerts-bot.json)
+under **Admin → Nests → Import Egg**. Servers created from that egg ask for the
+token and application ID when they are created, clone and build the bot
+automatically, and pull updates on every restart.
+
+### Railway
+
+1. [Sign up for Railway](https://railway.com?referralCode=BankkRoll), create a
+   project, and choose **Deploy from GitHub repo** with this repository or your
+   fork. [railway.json](railway.json) tells Railway to build the `Dockerfile`.
+2. Under **Variables**, add `DISCORD_TOKEN`, `CLIENT_ID`, and
+   `RAILWAY_RUN_UID=0`.
+3. Right-click the service, choose **Attach Volume**, and mount it at
+   `/app/data`.
+
+`RAILWAY_RUN_UID=0` is needed because Railway mounts volumes as root, while the
+image runs as the unprivileged `node` user and could not otherwise write there.
+
 ## Supported platforms
 
 | Platform | Data source | Notes |

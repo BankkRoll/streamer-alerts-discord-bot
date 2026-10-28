@@ -1,0 +1,103 @@
+{
+  "_comment": "Pterodactyl egg for Streamer Alerts Bot. Import via Admin -> Nests -> Import Egg.",
+  "meta": {
+    "version": "PTDL_v2",
+    "update_url": null
+  },
+  "exported_at": "2026-10-28T00:00:00+00:00",
+  "name": "Streamer Alerts Bot",
+  "author": "bankkroll.eth@gmail.com",
+  "description": "Discord bot that posts live alerts for Twitch, YouTube, Kick, Rumble and TikTok streamers. No API keys or database required.",
+  "features": null,
+  "docker_images": {
+    "Node.js 22": "ghcr.io/parkervcp/yolks:nodejs_22",
+    "Node.js 20": "ghcr.io/parkervcp/yolks:nodejs_20"
+  },
+  "file_denylist": [],
+  "startup": "if [[ -d .git ]] && [[ \"{{AUTO_UPDATE}}\" == \"1\" ]]; then git pull; fi; npm install --no-audit --no-fund; node index.js",
+  "config": {
+    "files": "{}",
+    "startup": "{\r\n    \"done\": \"Logged in as \"\r\n}",
+    "logs": "{}",
+    "stop": "^C"
+  },
+  "scripts": {
+    "installation": {
+      "script": "#!/bin/bash\nset -e\napt-get update\napt-get install -y git ca-certificates\nmkdir -p /mnt/server\ncd /mnt/server\nif [ -d .git ]; then\n  git pull\nelse\n  git clone --depth 1 --branch \"${BRANCH}\" \"${GIT_ADDRESS}\" /tmp/src\n  cp -a /tmp/src/. /mnt/server/\nfi\nnpm install --no-audit --no-fund\nnpm run build\necho \"Install complete\"",
+      "container": "node:22-bookworm-slim",
+      "entrypoint": "bash"
+    }
+  },
+  "variables": [
+    {
+      "name": "Discord Bot Token",
+      "description": "Bot token from the Discord Developer Portal (Bot -> Reset Token).",
+      "env_variable": "DISCORD_TOKEN",
+      "default_value": "",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|string",
+      "field_type": "text"
+    },
+    {
+      "name": "Application ID",
+      "description": "Application ID from the Discord Developer Portal (General Information).",
+      "env_variable": "CLIENT_ID",
+      "default_value": "",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|string",
+      "field_type": "text"
+    },
+    {
+      "name": "Guild ID",
+      "description": "Optional. Register slash commands to one server for instant availability. Leave empty to register globally (up to an hour to appear).",
+      "env_variable": "GUILD_ID",
+      "default_value": "",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "nullable|string",
+      "field_type": "text"
+    },
+    {
+      "name": "Git Repository",
+      "description": "Repository to install from. Point this at your fork to run your own changes.",
+      "env_variable": "GIT_ADDRESS",
+      "default_value": "https://github.com/BankkRoll/streamer-alerts-discord-bot.git",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|string",
+      "field_type": "text"
+    },
+    {
+      "name": "Branch",
+      "description": "Branch to install from.",
+      "env_variable": "BRANCH",
+      "default_value": "main",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|string",
+      "field_type": "text"
+    },
+    {
+      "name": "Auto Update",
+      "description": "Pull the latest code from the repository on every start (1 = on, 0 = off).",
+      "env_variable": "AUTO_UPDATE",
+      "default_value": "1",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|boolean",
+      "field_type": "text"
+    },
+    {
+      "name": "Log Level",
+      "description": "One of: debug, info, warn, error, silent.",
+      "env_variable": "LOG_LEVEL",
+      "default_value": "info",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|string|in:debug,info,warn,error,silent",
+      "field_type": "text"
+    }
+  ]
+}

@@ -23,6 +23,7 @@ export default tseslint.config(
       "coverage/**",
       ".scratch/**",
       "eslint.config.js",
+      "index.js",
     ],
   },
 
