@@ -14,7 +14,10 @@
  *   parse failure, never as "offline".
  * - YouTube serves a consent interstitial to requests from some regions, which
  *   contains no player data at all. That is detected explicitly, because it
- *   otherwise looks identical to a channel that is simply not live.
+ *   otherwise looks identical to a channel that is simply not live. Flagged
+ *   IPs instead get a LOGIN_REQUIRED player with `videoDetails` stripped; the
+ *   watch page's `ytInitialData` still carries the live flag, so the check
+ *   falls back to it.
  * - Upcoming premieres and scheduled streams carry `isLive: false` alongside
  *   `isLiveContent: true`; only an actively broadcasting stream should alert.
  *
@@ -138,26 +141,6 @@ export async function checkYouTubeLive(
   }
 
   const profile = extractProfile(initial);
-
-  // A channel with nothing live serves its channel page, which carries
-  // ytInitialData but no player payload at all. That absence is YouTube's
-  // offline signal on this route, so it is only a parse failure when the page
-  // *is* a watch page — proven by the watch-page renderer in ytInitialData.
-  if (!player) {
-    return isWatchPage(initial)
-      ? {
-          ...base,
-          ...profile,
-          isLive: false,
-          error: parseError(
-            "youtube",
-            ParseFailure.SHAPE_CHANGED,
-            "watch page without ytInitialPlayerResponse",
-          ),
-        }
-      : { ...base, ...profile, isLive: false };
-  }
-
   const playability = text(dig(player, "playabilityStatus", "status"), 32);
 
   // ERROR means the video does not exist, which on the /live route is how
@@ -166,12 +149,14 @@ export async function checkYouTubeLive(
     return { ...base, ...profile, isLive: false };
   }
 
-  const details = asRecord(player.videoDetails);
+  const details = asRecord(player?.videoDetails);
 
-  // A channel with no current or recent stream serves the channel page, which
-  // has no videoDetails. That is a legitimate offline answer.
+  // Without videoDetails the player payload cannot answer. That happens on the
+  // channel page (nothing live), and on a watch page when YouTube's bot gate
+  // answers with LOGIN_REQUIRED — common from datacenter IPs — and strips the
+  // video out of the player while still serving the rest of the page.
   if (!details) {
-    return { ...base, ...profile, isLive: false };
+    return statusFromWatchData(base, profile, initial, playability);
   }
 
   const isLiveNow = flag(details.isLive) === true;
@@ -236,6 +221,129 @@ export async function checkYouTubeLive(
   };
 }
 
+/** Stream fields recovered from the watch page's `ytInitialData`. */
+interface WatchData {
+  isLive: boolean;
+  videoId?: string;
+  title?: string;
+  viewers?: number;
+}
+
+/**
+ * Answer a check from `ytInitialData` when the player payload cannot.
+ *
+ * A channel page means nothing is live. A watch page is decided by its own
+ * live flag. Anything else is reported as an error rather than as offline: a
+ * gated or reshaped page silently reading "offline" is exactly how alerts
+ * stopped for every YouTube channel behind a flagged IP.
+ *
+ * @param base - Platform, username, and channel URL for the result.
+ * @param profile - Channel metadata already read from the page.
+ * @param initial - The parsed `ytInitialData` payload, when present.
+ * @param playability - `playabilityStatus.status` from the player, if any.
+ * @returns The channel's live status.
+ */
+function statusFromWatchData(
+  base: Pick<LiveStatus, "platform" | "username" | "url">,
+  profile: YouTubeProfile,
+  initial: Record<string, unknown> | undefined,
+  playability: string | undefined,
+): LiveStatus {
+  const watch = isWatchPage(initial) ? readWatchData(initial) : undefined;
+
+  if (!watch) {
+    if (playability === "LOGIN_REQUIRED") {
+      return {
+        ...base,
+        ...profile,
+        isLive: false,
+        error: parseError("youtube", ParseFailure.BLOCKED, "sign-in required"),
+      };
+    }
+    return isWatchPage(initial)
+      ? {
+          ...base,
+          ...profile,
+          isLive: false,
+          error: parseError(
+            "youtube",
+            ParseFailure.SHAPE_CHANGED,
+            "watch page without videoDetails or videoPrimaryInfoRenderer",
+          ),
+        }
+      : { ...base, ...profile, isLive: false };
+  }
+
+  if (!watch.isLive) {
+    return { ...base, ...profile, isLive: false };
+  }
+
+  const { videoId } = watch;
+  return {
+    ...base,
+    ...profile,
+    isLive: true,
+    url: videoId
+      ? `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`
+      : base.url,
+    username: profile.displayName ?? base.username,
+    title: watch.title,
+    viewers: watch.viewers,
+    thumbnail: videoId
+      ? `https://i.ytimg.com/vi/${encodeURIComponent(videoId)}/hqdefault_live.jpg`
+      : undefined,
+  };
+}
+
+/**
+ * Read the live flag and stream fields from a watch page's `ytInitialData`.
+ *
+ * `videoPrimaryInfoRenderer` is rendered server-side for the watch layout and
+ * is not subject to the player's bot gate, so it stays populated when
+ * `videoDetails` is withheld. Its view-count renderer carries `isLive` only
+ * while the stream is broadcasting; a scheduled stream or ended VOD omits it.
+ *
+ * @param initial - The parsed `ytInitialData` payload of a watch page.
+ * @returns The stream fields, or `undefined` when the renderer is missing.
+ */
+function readWatchData(
+  initial: Record<string, unknown> | undefined,
+): WatchData | undefined {
+  const contents = asArray(
+    dig(
+      initial,
+      "contents",
+      "twoColumnWatchNextResults",
+      "results",
+      "results",
+      "contents",
+    ),
+  );
+  const primary = contents
+    ?.map((item) => asRecord(dig(item, "videoPrimaryInfoRenderer")))
+    .find((renderer) => renderer !== undefined);
+  if (!primary) return undefined;
+
+  const viewCount = asRecord(dig(primary, "viewCount", "videoViewCountRenderer"));
+
+  // Hashtags and links split the title into runs whose boundary whitespace is
+  // significant, so runs are joined untrimmed.
+  const title = asArray(dig(primary, "title", "runs"))
+    ?.map((run) => dig(run, "text"))
+    .filter((part): part is string => typeof part === "string")
+    .join("");
+
+  return {
+    isLive: flag(viewCount?.isLive) === true,
+    videoId: text(
+      dig(initial, "currentVideoEndpoint", "watchEndpoint", "videoId"),
+      32,
+    ),
+    title: text(title, 256),
+    viewers: count(viewCount?.originalViewCount),
+  };
+}
+
 /** Channel-level fields read from the page payload. */
 interface YouTubeProfile {
   displayName?: string;
@@ -265,7 +373,7 @@ function extractProfile(
   const owner = findOwnerRenderer(initial);
   if (owner) {
     return {
-      displayName: text(dig(owner, "title", "runs", "0", "text"), 64),
+      displayName: text(dig(asArray(dig(owner, "title", "runs"))?.[0], "text"), 64),
       followers: abbreviatedCount(dig(owner, "subscriberCountText", "simpleText")),
       profileImage: bestThumbnail(dig(owner, "thumbnail", "thumbnails")),
       verified: hasVerifiedBadge(owner),
