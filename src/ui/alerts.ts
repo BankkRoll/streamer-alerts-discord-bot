@@ -18,6 +18,7 @@ import {
   ContainerBuilder,
   MessageFlags,
   SeparatorSpacingSize,
+  TextDisplayBuilder,
 } from "discord.js";
 import type { APIMessageTopLevelComponent } from "discord.js";
 import { assertWithinBudget } from "./budget.js";
@@ -134,7 +135,7 @@ function buildTagLine(status: LiveStatus): string | undefined {
  * Compose a live alert.
  *
  * @param status - Result of the platform check that triggered this alert.
- * @param options - Optional role mention to prepend.
+ * @param options - Optional role to ping, rendered above the container.
  * @returns A payload carrying the `IsComponentsV2` flag.
  *
  * @example
@@ -223,6 +224,17 @@ export function buildLiveAlert(
   );
 
   const components: APIMessageTopLevelComponent[] = [container.toJSON()];
+
+  // NOTE: V2 messages cannot carry `content`, and allowedMentions only permits
+  // a ping; the mention must still appear in a Text Display to notify anyone.
+  if (options.mentionRoleId) {
+    components.unshift(
+      new TextDisplayBuilder()
+        .setContent(`<@&${options.mentionRoleId}>`)
+        .toJSON(),
+    );
+  }
+
   assertWithinBudget(components);
 
   return {

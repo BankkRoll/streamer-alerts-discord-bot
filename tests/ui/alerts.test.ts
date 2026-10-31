@@ -197,6 +197,30 @@ describe("buildLiveAlert mention control", () => {
     expect(payload.allowedMentions.roles).toEqual(["999888777666555444"]);
   });
 
+  // allowedMentions only permits a ping; without the token in the body
+  // Discord has nothing to notify.
+  it("renders the configured role mention above the container", () => {
+    const payload = buildLiveAlert(liveStatus(), {
+      mentionRoleId: "999888777666555444",
+    });
+
+    expect(payload.components).toHaveLength(2);
+    expect(payload.components[0]).toMatchObject({
+      type: ComponentType.TextDisplay,
+      content: "<@&999888777666555444>",
+    });
+    expect((payload.components[1] as unknown as Node).type).toBe(
+      ComponentType.Container,
+    );
+  });
+
+  it("renders no mention line when no role is configured", () => {
+    const payload = buildLiveAlert(liveStatus());
+
+    expect(payload.components).toHaveLength(1);
+    expect(JSON.stringify(payload.components)).not.toContain("<@&");
+  });
+
   it("never grants a role allowance a caller did not ask for", () => {
     const payload = buildLiveAlert(
       liveStatus({ title: "@everyone <@&111> now" }),
